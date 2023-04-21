@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#! /usr/bin/env python
 
 import random, os.path
 
@@ -19,11 +19,10 @@ ALIEN_RELOAD   = 12     #frames between new aliens
 SCREENRECT     = Rect(0, 0, 640, 480)
 SCORE          = 0
 
-main_dir = os.path.split(os.path.abspath(__file__))[0]
 
 def load_image(file):
     "loads an image, prepares it for play"
-    file = os.path.join(main_dir, 'data', file)
+    file = os.path.join('data', file)
     try:
         surface = pygame.image.load(file)
     except pygame.error:
@@ -42,12 +41,12 @@ class dummysound:
 
 def load_sound(file):
     if not pygame.mixer: return dummysound()
-    file = os.path.join(main_dir, 'data', file)
+    file = os.path.join('data', file)
     try:
         sound = pygame.mixer.Sound(file)
         return sound
     except pygame.error:
-        print ('Warning, unable to load, %s' % file)
+        print ('Warning, unable to load,', file)
     return dummysound()
 
 
@@ -61,8 +60,6 @@ def load_sound(file):
 # the keyboard
 
 
-gravity = 0.15
-
 class Player(pygame.sprite.Sprite):
     speed = 10
     bounce = 24
@@ -71,8 +68,10 @@ class Player(pygame.sprite.Sprite):
     def __init__(self):
         pygame.sprite.Sprite.__init__(self, self.containers)
         self.image = self.images[0]
-        self.rect = self.image.get_rect(midbottom=SCREENRECT.midbottom)
+        self.rect = self.image.get_rect()
         self.reloading = 0
+        self.rect.centerx = SCREENRECT.centerx
+        self.rect.bottom = SCREENRECT.bottom - 1
         self.origtop = self.rect.top
         self.facing = -1
 
@@ -84,7 +83,7 @@ class Player(pygame.sprite.Sprite):
             self.image = self.images[0]
         elif direction > 0:
             self.image = self.images[1]
-        self.rect.top = self.origtop - (self.rect.left//self.bounce%2)
+        self.rect.top = self.origtop - (self.rect.left/self.bounce%2)
 
     def gunpos(self):
         pos = self.facing*self.gun_offset + self.rect.centerx
@@ -111,7 +110,7 @@ class Alien(pygame.sprite.Sprite):
             self.rect.top = self.rect.bottom + 1
             self.rect = self.rect.clamp(SCREENRECT)
         self.frame = self.frame + 1
-        self.image = self.images[self.frame//self.animcycle%3]
+        self.image = self.images[self.frame/self.animcycle%3]
 
 
 class Explosion(pygame.sprite.Sprite):
@@ -121,12 +120,13 @@ class Explosion(pygame.sprite.Sprite):
     def __init__(self, actor):
         pygame.sprite.Sprite.__init__(self, self.containers)
         self.image = self.images[0]
-        self.rect = self.image.get_rect(center=actor.rect.center)
+        self.rect = self.image.get_rect()
         self.life = self.defaultlife
+        self.rect.center = actor.rect.center
 
     def update(self):
         self.life = self.life - 1
-        self.image = self.images[self.life//self.animcycle%2]
+        self.image = self.images[self.life/self.animcycle%2]
         if self.life <= 0: self.kill()
 
 
@@ -136,13 +136,12 @@ class Shot(pygame.sprite.Sprite):
     def __init__(self, pos):
         pygame.sprite.Sprite.__init__(self, self.containers)
         self.image = self.images[0]
-        self.rect = self.image.get_rect(midbottom=pos)
+        self.rect = self.image.get_rect()
+        self.rect.midbottom = pos
 
     def update(self):
         self.rect.move_ip(0, self.speed)
-        self.speed += gravity
-
-        if self.rect.top <= 0 or self.rect.bottom >= 480:
+        if self.rect.top <= 0:
             self.kill()
 
 
@@ -152,8 +151,9 @@ class Bomb(pygame.sprite.Sprite):
     def __init__(self, alien):
         pygame.sprite.Sprite.__init__(self, self.containers)
         self.image = self.images[0]
-        self.rect = self.image.get_rect(midbottom=
-                    alien.rect.move(0,5).midbottom)
+        self.rect = self.image.get_rect()
+        self.rect.centerx = alien.rect.centerx
+        self.rect.bottom = alien.rect.bottom + 5
 
     def update(self):
         self.rect.move_ip(0, self.speed)
@@ -219,8 +219,8 @@ def main(winstyle = 0):
     #load the sound effects
     boom_sound = load_sound('boom.wav')
     shoot_sound = load_sound('car_door.wav')
-    if pygame.mixer:
-        music = os.path.join(main_dir, 'data', 'house_lo.wav')
+    if pygame.mixer and pygame.mixer.music:
+        music = os.path.join('data', 'house_lo.wav')
         pygame.mixer.music.load(music)
         pygame.mixer.music.play(-1)
 
@@ -307,12 +307,6 @@ def main(winstyle = 0):
             Explosion(bomb)
             player.kill()
 
-        for shot in pygame.sprite.spritecollide(player, shots, 1):
-            boom_sound.play()
-            Explosion(player)
-            Explosion(shot)
-            player.kill()
-
         #draw the scene
         dirty = all.draw(screen)
         pygame.display.update(dirty)
@@ -320,10 +314,9 @@ def main(winstyle = 0):
         #cap the framerate
         clock.tick(40)
 
-    if pygame.mixer:
+    if pygame.mixer and pygame.mixer.music:
         pygame.mixer.music.fadeout(1000)
     pygame.time.wait(1000)
-    pygame.quit()
 
 
 
